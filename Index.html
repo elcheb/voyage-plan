@@ -1,0 +1,1159 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VoyagePlan — Google Sheets</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0f0e0b;
+  --panel: #161511;
+  --surface: #1e1d18;
+  --surface2: #252420;
+  --border: #2e2c25;
+  --border2: #3a3830;
+  --gold: #c9a96e;
+  --gold2: #e8c98a;
+  --sage: #7ea88c;
+  --terra: #c97a5e;
+  --sky: #6e9ac9;
+  --text: #ece8df;
+  --text2: #a09880;
+  --text3: #5a5644;
+  --mono: 'DM Mono', monospace;
+  --sans: 'DM Sans', sans-serif;
+  --serif: 'Cormorant Garamond', serif;
+  --panel-w: 390px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-family: var(--sans); }
+#app { display: flex; height: 100vh; width: 100vw; }
+
+/* ── PANEL ── */
+#panel {
+  width: var(--panel-w);
+  flex-shrink: 0;
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 10;
+}
+
+/* ── SETUP SCREEN ── */
+#setup-screen {
+  position: fixed;
+  inset: 0;
+  background: rgba(10,9,7,0.96);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.setup-box {
+  background: var(--panel);
+  border: 1px solid var(--border2);
+  border-radius: 16px;
+  padding: 32px;
+  max-width: 560px;
+  width: 100%;
+}
+
+.setup-logo {
+  font-family: var(--serif);
+  font-size: 1.8rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.setup-logo em { color: var(--gold); font-style: italic; }
+
+.setup-sub {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--text3);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 28px;
+}
+
+.setup-step {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 18px;
+  margin-bottom: 12px;
+}
+
+.step-num {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  color: var(--gold);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.step-title {
+  font-family: var(--sans);
+  font-size: 0.92rem;
+  font-weight: 500;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.step-desc {
+  font-family: var(--sans);
+  font-size: 0.8rem;
+  color: var(--text2);
+  line-height: 1.55;
+  margin-bottom: 10px;
+}
+
+.step-code {
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--gold2);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  margin-bottom: 8px;
+  user-select: all;
+}
+
+.input-group { display: flex; gap: 8px; margin-top: 8px; }
+
+.setup-input {
+  flex: 1;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  padding: 10px 14px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.setup-input:focus { border-color: var(--gold); }
+.setup-input::placeholder { color: var(--text3); }
+
+.btn-setup {
+  background: var(--gold);
+  border: none;
+  border-radius: 8px;
+  color: #0f0e0b;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  padding: 10px 18px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+
+.btn-setup:hover { background: var(--gold2); }
+.btn-setup.secondary {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  color: var(--text2);
+}
+.btn-setup.secondary:hover { border-color: var(--gold); color: var(--gold); background: var(--surface); }
+
+.setup-warning {
+  background: rgba(201,122,94,0.1);
+  border: 1px solid rgba(201,122,94,0.3);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-family: var(--sans);
+  font-size: 0.78rem;
+  color: #e09880;
+  line-height: 1.5;
+  margin-top: 10px;
+}
+
+.setup-ok {
+  background: rgba(126,168,140,0.1);
+  border: 1px solid rgba(126,168,140,0.3);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-family: var(--sans);
+  font-size: 0.78rem;
+  color: var(--sage);
+  line-height: 1.5;
+  margin-top: 10px;
+  display: none;
+}
+
+/* ── HEADER ── */
+#panel-header {
+  padding: 16px 16px 12px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.logo-title { font-family: var(--serif); font-size: 1.4rem; font-weight: 600; color: var(--text); }
+.logo-title em { color: var(--gold); font-style: italic; }
+
+.sync-row { display: flex; align-items: center; gap: 6px; }
+
+.sync-btn {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 7px;
+  color: var(--text2);
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  padding: 5px 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.sync-btn:hover { border-color: var(--gold); color: var(--gold); }
+.sync-btn.loading { opacity: 0.6; pointer-events: none; }
+
+.sync-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--sage);
+  flex-shrink: 0;
+}
+
+.sync-dot.err { background: var(--terra); }
+.sync-dot.loading { background: var(--gold); animation: pulse 1s ease-in-out infinite; }
+
+@keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
+
+.sync-time { font-family: var(--mono); font-size: 0.58rem; color: var(--text3); }
+
+.sheet-link {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  color: var(--text3);
+  text-decoration: none;
+  transition: color 0.15s;
+  padding: 4px 0;
+}
+.sheet-link:hover { color: var(--gold); }
+
+/* ── TABS ── */
+#tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.tab {
+  flex: 1;
+  background: none;
+  border: none;
+  color: var(--text3);
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 9px 4px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: all 0.2s;
+}
+.tab:hover { color: var(--text2); }
+.tab.active { color: var(--gold); border-bottom-color: var(--gold); }
+
+/* ── PANEL BODY ── */
+#panel-body { flex: 1; overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; scrollbar-color: var(--border2) transparent; }
+
+.pane { display: none; padding: 14px; }
+.pane.active { display: block; }
+
+/* ── SYNTHÈSE ── */
+.synth-label {
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  color: var(--text3);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+.kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+
+.kpi {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+.kpi-val { font-family: var(--serif); font-size: 1.7rem; font-weight: 600; line-height: 1; margin-bottom: 3px; }
+.kpi-val.gold { color: var(--gold); }
+.kpi-val.sage { color: var(--sage); }
+.kpi-val.sky { color: var(--sky); }
+.kpi-val.terra { color: var(--terra); }
+.kpi-lbl { font-family: var(--mono); font-size: 0.58rem; color: var(--text3); letter-spacing: 0.08em; }
+
+.status-bar { display: flex; flex-direction: column; gap: 5px; margin-bottom: 16px; }
+
+.status-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--surface);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.dot-sel { background: var(--sage); }
+.dot-pre { background: var(--gold); }
+.dot-etu { background: var(--sky); }
+.dot-exc { background: var(--terra); }
+.dot-poi { background: #a78bfa; }
+
+.status-name { font-size: 0.8rem; color: var(--text2); flex: 1; }
+.status-count { font-family: var(--mono); font-size: 0.82rem; font-weight: 500; color: var(--text); }
+
+.budget-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 16px;
+}
+
+.budget-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+.budget-amount { font-family: var(--serif); font-size: 1.5rem; font-weight: 600; color: var(--gold); }
+.budget-sub2 { font-family: var(--mono); font-size: 0.6rem; color: var(--text3); }
+
+.bar-track { height: 3px; background: var(--surface2); border-radius: 2px; overflow: hidden; margin-bottom: 10px; }
+.bar-fill { height: 100%; border-radius: 2px; background: linear-gradient(90deg, var(--sage), var(--gold)); transition: width 0.5s ease; }
+
+.bbd-row { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 0.66rem; color: var(--text3); padding: 3px 0; }
+.bbd-row span:last-child { color: var(--text2); }
+
+/* ── CARDS ── */
+.loc-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  margin-bottom: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+.loc-card:hover { border-color: var(--border2); }
+.loc-card.S { border-left: 3px solid var(--sage); }
+.loc-card.P { border-left: 3px solid var(--gold); }
+.loc-card.E { border-left: 3px solid var(--terra); opacity: 0.6; }
+.loc-card.A { border-left: 3px solid var(--sky); }
+
+.loc-head { padding: 10px 12px 6px; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+.loc-name { font-family: var(--serif); font-size: 0.98rem; font-weight: 600; color: var(--text); line-height: 1.2; }
+.loc-city { font-family: var(--mono); font-size: 0.6rem; color: var(--text3); margin-top: 2px; letter-spacing: 0.05em; }
+.loc-price { font-family: var(--serif); font-size: 1.05rem; font-weight: 600; color: var(--gold); text-align: right; white-space: nowrap; }
+.loc-price small { font-family: var(--sans); font-size: 0.6rem; color: var(--text3); font-weight: 400; }
+
+.loc-foot { padding: 5px 12px 10px; display: flex; align-items: center; gap: 6px; }
+
+.status-badge {
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.06em;
+  padding: 3px 8px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+.badge-S { background: rgba(126,168,140,0.15); color: var(--sage); border: 1px solid rgba(126,168,140,0.3); }
+.badge-P { background: rgba(201,169,110,0.12); color: var(--gold); border: 1px solid rgba(201,169,110,0.3); }
+.badge-A { background: rgba(110,154,201,0.12); color: var(--sky); border: 1px solid rgba(110,154,201,0.3); }
+.badge-E { background: rgba(201,122,94,0.1); color: var(--terra); border: 1px solid rgba(201,122,94,0.25); }
+
+.mini-link {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  color: var(--text3);
+  text-decoration: none;
+  padding: 3px 7px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  transition: all 0.15s;
+  margin-left: auto;
+}
+.mini-link:hover { border-color: var(--gold); color: var(--gold); }
+
+.poi-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 6px;
+  padding: 9px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: opacity 0.2s;
+}
+.poi-card.off { opacity: 0.38; }
+.poi-icon { font-size: 1rem; flex-shrink: 0; }
+.poi-info { flex: 1; min-width: 0; }
+.poi-name { font-size: 0.85rem; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.poi-meta { font-family: var(--mono); font-size: 0.58rem; color: var(--text3); letter-spacing: 0.04em; margin-top: 1px; }
+
+.toggle-pill {
+  background: none;
+  border: 1px solid var(--border2);
+  border-radius: 20px;
+  color: var(--text3);
+  font-family: var(--mono);
+  font-size: 0.56rem;
+  letter-spacing: 0.06em;
+  padding: 3px 9px;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.poi-card:not(.off) .toggle-pill { background: rgba(126,168,140,0.12); border-color: var(--sage); color: var(--sage); }
+
+/* ── FILTERS ── */
+#filters {
+  padding: 8px 12px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.filter-lbl { font-family: var(--mono); font-size: 0.56rem; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; margin-right: 2px; }
+
+.chip {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  color: var(--text3);
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.05em;
+  padding: 3px 9px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.chip.on { border-color: var(--gold); color: var(--gold); background: rgba(201,169,110,0.08); }
+
+/* ── MAP ── */
+#map-wrap { flex: 1; position: relative; overflow: hidden; }
+#map { width: 100%; height: 100%; }
+.leaflet-container { background: #1a1912 !important; }
+.leaflet-tile-pane { filter: brightness(0.68) saturate(0.55) contrast(1.1); }
+
+.leaflet-popup-content-wrapper {
+  background: var(--panel) !important;
+  border: 1px solid var(--border2) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6) !important;
+  color: var(--text) !important;
+}
+.leaflet-popup-tip { background: var(--panel) !important; }
+.leaflet-popup-close-button { color: var(--text3) !important; }
+
+.popup-body { padding: 2px; min-width: 200px; }
+.popup-cat { font-family: var(--mono); font-size: 0.58rem; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 4px; }
+.popup-name { font-family: var(--serif); font-size: 1.1rem; font-weight: 600; color: var(--text); margin-bottom: 4px; line-height: 1.2; }
+.popup-city { font-family: var(--mono); font-size: 0.62rem; color: var(--text3); margin-bottom: 8px; }
+.popup-price { font-family: var(--serif); font-size: 1.2rem; font-weight: 600; color: var(--gold); margin-bottom: 8px; }
+.popup-note { font-size: 0.78rem; color: var(--text2); line-height: 1.5; margin-bottom: 8px; font-style: italic; }
+.popup-link { display: inline-flex; align-items: center; gap: 4px; font-family: var(--mono); font-size: 0.62rem; color: var(--gold); text-decoration: none; border-bottom: 1px solid rgba(201,169,110,0.3); padding-bottom: 1px; }
+.popup-link:hover { border-color: var(--gold); }
+.popup-edit-note { font-family: var(--mono); font-size: 0.58rem; color: var(--text3); margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border); letter-spacing: 0.04em; }
+
+/* ── LEGEND ── */
+#legend {
+  position: absolute;
+  bottom: 20px;
+  right: 14px;
+  z-index: 400;
+  background: rgba(22,21,17,0.92);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  backdrop-filter: blur(4px);
+}
+.leg-item { display: flex; align-items: center; gap: 7px; }
+.leg-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; border: 1.5px solid rgba(255,255,255,0.15); }
+.leg-lbl { font-family: var(--mono); font-size: 0.58rem; color: var(--text2); letter-spacing: 0.05em; }
+
+/* ── NOTIFICATION ── */
+#notif {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--panel);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  padding: 10px 18px;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--text2);
+  z-index: 9999;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.3s;
+  white-space: nowrap;
+}
+#notif.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+#notif.ok { color: var(--sage); border-color: rgba(126,168,140,0.4); }
+#notif.err { color: var(--terra); border-color: rgba(201,122,94,0.4); }
+
+/* empty state */
+.empty { text-align: center; padding: 28px 10px; color: var(--text3); font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.06em; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ══ SETUP SCREEN ══ -->
+  <div id="setup-screen">
+    <div class="setup-box">
+      <div class="setup-logo">Voyage<em>Plan</em></div>
+      <div class="setup-sub">Configuration Google Sheets — sans clé API</div>
+
+      <div class="setup-step">
+        <div class="step-num">Étape 1 — Copier le modèle Google Sheet</div>
+        <div class="step-title">Clique sur le lien ci-dessous pour dupliquer le modèle prêt à l'emploi</div>
+        <div class="step-desc">
+          Le modèle contient déjà les deux onglets <strong>Locations</strong> et <strong>POI</strong> avec les bonnes colonnes. Tu n'as plus qu'à remplir tes données.
+        </div>
+        <a href="https://docs.google.com/spreadsheets/d/1sh0auODIXnD5yoUqG6q5N9XuzjaBhbO2yUFMC7ui0A4/copy" target="_blank" class="btn-setup secondary" style="display:inline-block;margin-top:6px;text-decoration:none">📋 Copier le modèle →</a>
+      </div>
+
+      <div class="setup-step">
+        <div class="step-num">Étape 2 — Rendre le Sheet public en lecture</div>
+        <div class="step-title">Dans ton Sheet : Partage → Accès général → "Toute personne ayant le lien" → Lecteur</div>
+        <div class="step-desc">
+          ⚠️ <strong>Indispensable</strong> — sans ça, l'app ne peut pas lire les données. <br>Aucune clé API requise : on utilise l'export CSV public de Google Sheets, qui fonctionne depuis n'importe quel navigateur sans blocage.
+        </div>
+      </div>
+
+      <div class="setup-step">
+        <div class="step-num">Étape 3 — Coller l'ID du Sheet</div>
+        <div class="step-desc">C'est la partie de l'URL entre <code style="background:var(--surface2);padding:1px 5px;border-radius:3px;font-size:0.78rem">/d/</code> et <code style="background:var(--surface2);padding:1px 5px;border-radius:3px;font-size:0.78rem">/edit</code></div>
+        <div class="step-code">https://docs.google.com/spreadsheets/d/<span style="color:var(--sage)">COLLE_ICI</span>/edit</div>
+        <div class="input-group" style="margin-top:8px">
+          <input class="setup-input" id="setup-sheet-id" placeholder="1sh0auODIXnD5yoUqG6q5N9XuzjaBhbO2yUFMC7ui0A4">
+          <button class="btn-setup" onclick="connectSheets()">Connecter →</button>
+        </div>
+        <div id="setup-err" style="display:none;margin-top:10px" class="setup-warning">
+          ❌ Impossible de lire le Sheet. Vérifie que l'accès est bien "Toute personne avec le lien" et que l'ID est correct.
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;margin-top:6px">
+        <button class="btn-setup secondary" onclick="useDemoMode()">Utiliser en mode démo (données exemples)</button>
+      </div>
+
+      <div id="setup-ok" class="setup-ok">✓ Sheet trouvé — chargement des données…</div>
+    </div>
+  </div>
+
+  <!-- ══ MAIN PANEL ══ -->
+  <div id="panel">
+
+    <div id="panel-header">
+      <div class="header-top">
+        <div class="logo-title">Voyage<em>Plan</em></div>
+        <div class="sync-row">
+          <button class="sync-btn" id="sync-btn" onclick="syncData()">
+            <div class="sync-dot" id="sync-dot"></div>
+            <span id="sync-label">Actualiser</span>
+          </button>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div class="sync-time" id="sync-time">—</div>
+        <a id="sheet-link" href="#" target="_blank" class="sheet-link">
+          📊 Modifier dans Sheets →
+        </a>
+      </div>
+    </div>
+
+    <div id="tabs">
+      <button class="tab active" onclick="switchTab('synthese')">Synthèse</button>
+      <button class="tab" onclick="switchTab('locations')">Locations</button>
+      <button class="tab" onclick="switchTab('poi')">POI</button>
+    </div>
+
+    <div id="panel-body">
+
+      <!-- SYNTHÈSE -->
+      <div class="pane active" id="pane-synthese">
+        <div class="synth-label">Vue d'ensemble</div>
+        <div class="kpi-grid">
+          <div class="kpi"><div class="kpi-val gold" id="k-locs">—</div><div class="kpi-lbl">Locations</div></div>
+          <div class="kpi"><div class="kpi-val sage" id="k-sel">—</div><div class="kpi-lbl">Sélectionnées</div></div>
+          <div class="kpi"><div class="kpi-val sky" id="k-poi">—</div><div class="kpi-lbl">POI actifs</div></div>
+          <div class="kpi"><div class="kpi-val terra" id="k-avg">—</div><div class="kpi-lbl">Prix moy./nuit</div></div>
+        </div>
+
+        <div class="synth-label">Statuts</div>
+        <div class="status-bar">
+          <div class="status-row"><div class="status-dot dot-sel"></div><div class="status-name">Sélectionné</div><div class="status-count" id="s-sel">0</div></div>
+          <div class="status-row"><div class="status-dot dot-pre"></div><div class="status-name">Présélectionné</div><div class="status-count" id="s-pre">0</div></div>
+          <div class="status-row"><div class="status-dot dot-etu"></div><div class="status-name">À étudier</div><div class="status-count" id="s-etu">0</div></div>
+          <div class="status-row"><div class="status-dot dot-exc"></div><div class="status-name">Exclu</div><div class="status-count" id="s-exc">0</div></div>
+        </div>
+
+        <div class="synth-label">Budget hébergement</div>
+        <div class="budget-card">
+          <div class="budget-top">
+            <div class="budget-amount" id="b-total">0 €</div>
+            <div class="budget-sub2">locations sélectionnées</div>
+          </div>
+          <div class="bar-track"><div class="bar-fill" id="b-bar" style="width:0%"></div></div>
+          <div id="b-breakdown"></div>
+        </div>
+
+        <div class="synth-label">Types de POI actifs</div>
+        <div class="status-bar" id="poi-types"></div>
+      </div>
+
+      <!-- LOCATIONS -->
+      <div class="pane" id="pane-locations">
+        <div id="loc-list"><div class="empty">Chargement…</div></div>
+      </div>
+
+      <!-- POI -->
+      <div class="pane" id="pane-poi">
+        <div id="poi-list"><div class="empty">Chargement…</div></div>
+      </div>
+
+    </div>
+
+    <!-- FILTERS -->
+    <div id="filters">
+      <span class="filter-lbl">Carte :</span>
+      <button class="chip on" id="f-locs" onclick="toggleFilter('locs',this)">Locations</button>
+      <button class="chip on" id="f-poi" onclick="toggleFilter('poi',this)">POI</button>
+      <button class="chip on" id="f-exclu" onclick="toggleFilter('exclu',this)">Exclues</button>
+    </div>
+
+  </div>
+
+  <!-- ══ MAP ══ -->
+  <div id="map-wrap">
+    <div id="map"></div>
+    <div id="legend">
+      <div class="leg-item"><div class="leg-dot" style="background:var(--sage)"></div><div class="leg-lbl">Sélectionné</div></div>
+      <div class="leg-item"><div class="leg-dot" style="background:var(--gold)"></div><div class="leg-lbl">Présélectionné</div></div>
+      <div class="leg-item"><div class="leg-dot" style="background:var(--sky)"></div><div class="leg-lbl">À étudier</div></div>
+      <div class="leg-item"><div class="leg-dot" style="background:var(--terra)"></div><div class="leg-lbl">Exclu</div></div>
+      <div class="leg-item"><div class="leg-dot" style="background:#a78bfa"></div><div class="leg-lbl">POI actif</div></div>
+    </div>
+  </div>
+
+</div>
+<div id="notif"></div>
+
+<script>
+// ══════════════════════════════════════════════════════════
+// CONFIG
+// ══════════════════════════════════════════════════════════
+let SHEET_ID  = '';
+let DEMO_MODE = false;
+
+let locations = [];
+let pois = [];
+let filters = { locs: true, poi: true, exclu: true };
+let markers = [];
+let map;
+let lastSync = null;
+
+// ══════════════════════════════════════════════════════════
+// SETUP — CSV public (aucune clé API)
+// ══════════════════════════════════════════════════════════
+async function connectSheets() {
+  const sid = document.getElementById('setup-sheet-id').value.trim();
+  if (!sid) { notif('Colle l\'ID du Sheet', 'err'); return; }
+  SHEET_ID = sid;
+
+  document.getElementById('setup-err').style.display = 'none';
+  const rows = await fetchCSV('Locations');
+  if (!rows) {
+    document.getElementById('setup-err').style.display = 'block';
+    SHEET_ID = '';
+    return;
+  }
+
+  document.getElementById('setup-ok').style.display = 'block';
+  saveConfig();
+  setTimeout(() => {
+    document.getElementById('setup-screen').style.display = 'none';
+    initApp();
+  }, 1000);
+}
+
+function useDemoMode() {
+  DEMO_MODE = true;
+  document.getElementById('setup-screen').style.display = 'none';
+  loadDemoData();
+  initApp();
+}
+
+function saveConfig() {
+  try { localStorage.setItem('vp_config2', JSON.stringify({ SHEET_ID })); } catch(e) {}
+}
+
+function loadConfig() {
+  try {
+    const c = JSON.parse(localStorage.getItem('vp_config2') || '{}');
+    if (c.SHEET_ID) { SHEET_ID = c.SHEET_ID; return true; }
+  } catch(e) {}
+  return false;
+}
+
+// ══════════════════════════════════════════════════════════
+// FETCH CSV — fonctionne depuis fichier local et depuis n'importe quelle URL
+// Pas de clé API, pas de CORS, pas de blocage navigateur
+// ══════════════════════════════════════════════════════════
+async function fetchCSV(tabName) {
+  // Format export CSV public de Google Sheets — fonctionne si le Sheet est "accessible à tous avec le lien"
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tabName)}`;
+  try {
+    const res = await fetch(url, { cache: 'no-store' });
+    if (!res.ok) return null;
+    const text = await res.text();
+    if (text.includes('<html') || text.includes('<!DOCTYPE')) return null; // page d'erreur Google
+    return parseCSV(text);
+  } catch(e) { return null; }
+}
+
+function parseCSV(text) {
+  // Parser CSV robuste (gère les guillemets, virgules dans les champs, emojis)
+  const lines = [];
+  let cur = '', inQ = false, row = [];
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (ch === '"') {
+      if (inQ && text[i+1] === '"') { cur += '"'; i++; }
+      else inQ = !inQ;
+    } else if (ch === ',' && !inQ) {
+      row.push(cur.trim()); cur = '';
+    } else if ((ch === '\n' || ch === '\r') && !inQ) {
+      if (cur || row.length) { row.push(cur.trim()); lines.push(row); }
+      cur = ''; row = [];
+      if (ch === '\r' && text[i+1] === '\n') i++;
+    } else cur += ch;
+  }
+  if (cur || row.length) { row.push(cur.trim()); lines.push(row); }
+  return lines.slice(1); // skip header row
+}
+
+function parseLocations(rows) {
+  return rows.map((r, i) => ({
+    id: i + 1,
+    name:     r[0] || '',
+    city:     r[1] || '',
+    country:  r[2] || '',
+    platform: r[3] || '',
+    price:    parseFloat((r[4]||'').replace(',','.')) || 0,
+    nights:   parseInt(r[5]) || 0,
+    status:   r[6] || 'À étudier',
+    url:      r[7] || '',
+    note:     r[8] || '',
+    lat:      parseFloat((r[9]||'').replace(',','.')) || null,
+    lng:      parseFloat((r[10]||'').replace(',','.')) || null,
+  })).filter(l => l.name);
+}
+
+function parsePois(rows) {
+  return rows.map((r, i) => ({
+    id: i + 1,
+    name:    r[0] || '',
+    city:    r[1] || '',
+    country: r[2] || '',
+    type:    r[3] || '📍 Autre',
+    prio:    r[4] || '⭐ Optionnel',
+    note:    r[5] || '',
+    active:  (r[6] || 'OUI').toUpperCase() !== 'NON',
+    lat:     parseFloat((r[7]||'').replace(',','.')) || null,
+    lng:     parseFloat((r[8]||'').replace(',','.')) || null,
+  })).filter(p => p.name);
+}
+
+async function syncData() {
+  if (DEMO_MODE) { notif('Mode démo — données locales uniquement', ''); return; }
+  setSyncState('loading');
+
+  const [locRows, poiRows] = await Promise.all([
+    fetchCSV('Locations'),
+    fetchCSV('POI')
+  ]);
+
+  if (!locRows && !poiRows) {
+    setSyncState('err');
+    notif('Impossible de lire le Sheet — vérifie le partage public', 'err');
+    return;
+  }
+
+  locations = parseLocations(locRows || []);
+  pois      = parsePois(poiRows || []);
+
+  await geocodeMissing();
+
+  lastSync = new Date();
+  setSyncState('ok');
+  document.getElementById('sync-time').textContent = 'Actualisé à ' + lastSync.toLocaleTimeString('fr-FR', {hour:'2-digit',minute:'2-digit'});
+  renderAll();
+  notif(`${locations.length} locations · ${pois.length} POI chargés`, 'ok');
+}
+
+function setSyncState(state) {
+  const dot = document.getElementById('sync-dot');
+  const btn = document.getElementById('sync-btn');
+  const lbl = document.getElementById('sync-label');
+  dot.className = 'sync-dot' + (state === 'loading' ? ' loading' : state === 'err' ? ' err' : '');
+  btn.classList.toggle('loading', state === 'loading');
+  lbl.textContent = state === 'loading' ? 'Chargement…' : 'Actualiser';
+}
+
+// ══════════════════════════════════════════════════════════
+// GEOCODING
+// ══════════════════════════════════════════════════════════
+async function geocodeMissing() {
+  const toGeo = [
+    ...locations.filter(l => !l.lat && l.city),
+    ...pois.filter(p => !p.lat && p.city)
+  ];
+  // Batch avec délai pour respecter Nominatim (1 req/s)
+  for (const item of toGeo) {
+    await new Promise(r => setTimeout(r, 1100));
+    const coords = await geocode(item.name, item.city, item.country);
+    if (coords) { item.lat = coords.lat; item.lng = coords.lng; }
+  }
+}
+
+async function geocode(name, city, country) {
+  try {
+    const q = encodeURIComponent(`${name}, ${city}, ${country}`);
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1&accept-language=fr`);
+    const d = await res.json();
+    if (d[0]) return { lat: parseFloat(d[0].lat), lng: parseFloat(d[0].lon) };
+    // Fallback ville seule
+    const q2 = encodeURIComponent(`${city}, ${country}`);
+    const res2 = await fetch(`https://nominatim.openstreetmap.org/search?q=${q2}&format=json&limit=1`);
+    const d2 = await res2.json();
+    if (d2[0]) return { lat: parseFloat(d2[0].lat), lng: parseFloat(d2[0].lon) };
+  } catch(e) {}
+  return null;
+}
+
+// ══════════════════════════════════════════════════════════
+// DEMO DATA
+// ══════════════════════════════════════════════════════════
+function loadDemoData() {
+  locations = [
+    { id:1, name:"Villa Torre", city:"Lucca", country:"Italie", platform:"Airbnb", price:180, nights:7, status:"Sélectionné", url:"https://www.airbnb.fr", note:"Jardin clos. Chien OK. Parking.", lat:43.843, lng:10.508 },
+    { id:2, name:"Apt. Centro Storico", city:"Florence", country:"Italie", platform:"Booking", price:95, nights:3, status:"Présélectionné", url:"https://www.booking.com", note:"Centre-ville. Sans parking.", lat:43.769, lng:11.256 },
+    { id:3, name:"Podere Val d'Orcia", city:"Pienza", country:"Italie", platform:"Abritel", price:210, nights:4, status:"Présélectionné", url:"https://www.abritel.fr", note:"Vue panoramique. Piscine.", lat:43.076, lng:11.683 },
+    { id:4, name:"Villa Lago di Como", city:"Varenna", country:"Italie", platform:"Airbnb", price:320, nights:5, status:"À étudier", url:"https://www.airbnb.fr", note:"Vue lac exceptionnelle.", lat:46.013, lng:9.287 },
+    { id:5, name:"Maison vignoble Langhe", city:"Alba", country:"Italie", platform:"Gîtes de France", price:140, nights:2, status:"Sélectionné", url:"https://www.gites-de-france.com", note:"Stopover Langhe.", lat:44.699, lng:8.035 },
+  ];
+  pois = [
+    { id:1, name:"Piazza del Campo", city:"Sienne", country:"Italie", type:"🏛 Monument", prio:"⭐⭐⭐ Incontournable", note:"Arriver tôt le matin.", active:true, lat:43.318, lng:11.332 },
+    { id:2, name:"Terme di Saturnia", city:"Saturnia", country:"Italie", type:"🏖 Plage / Lac", prio:"⭐⭐⭐ Incontournable", note:"Sources chaudes naturelles, accès libre.", active:true, lat:42.650, lng:11.508 },
+    { id:3, name:"Vignobles Barolo", city:"La Morra", country:"Italie", type:"🍷 Dégustation", prio:"⭐⭐ À faire", note:"Sur réservation.", active:true, lat:44.632, lng:7.935 },
+    { id:4, name:"Cinque Terre", city:"La Spezia", country:"Italie", type:"🌿 Nature", prio:"⭐⭐⭐ Incontournable", note:"Cinque Terre Card 18€.", active:true, lat:44.128, lng:9.708 },
+    { id:5, name:"Galleria degli Uffizi", city:"Florence", country:"Italie", type:"🎭 Musée", prio:"⭐⭐⭐ Incontournable", note:"Réservation obligatoire. Prévoir 3h.", active:true, lat:43.768, lng:11.255 },
+    { id:6, name:"Lago di Garda – Malcesine", city:"Malcesine", country:"Italie", type:"🏖 Plage / Lac", prio:"⭐ Optionnel", note:"Téléphérique Monte Baldo.", active:false, lat:45.762, lng:10.815 },
+  ];
+}
+
+// ══════════════════════════════════════════════════════════
+// MAP
+// ══════════════════════════════════════════════════════════
+function initMap() {
+  map = L.map('map', { center:[44.5, 10.5], zoom:7, zoomControl:true });
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors', maxZoom:19
+  }).addTo(map);
+}
+
+const statusColor = { 'Sélectionné':'#7ea88c', 'Présélectionné':'#c9a96e', 'À étudier':'#6e9ac9', 'Exclu':'#c97a5e' };
+
+function makeLocIcon(status) {
+  const c = statusColor[status] || '#888';
+  return L.divIcon({
+    html:`<div style="width:32px;height:32px;background:${c};border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2px solid rgba(255,255,255,0.35);display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(0,0,0,0.5)"><span style="transform:rotate(45deg);font-size:13px">🏠</span></div>`,
+    className:'', iconSize:[32,32], iconAnchor:[16,32], popupAnchor:[0,-34]
+  });
+}
+
+function makePoiIcon(type) {
+  const e = type.split(' ')[0] || '📍';
+  return L.divIcon({
+    html:`<div style="width:28px;height:28px;background:#5b3d8a;border-radius:50%;border:2px solid rgba(167,139,250,0.5);display:flex;align-items:center;justify-content:center;font-size:12px;box-shadow:0 2px 8px rgba(0,0,0,0.5)">${e}</div>`,
+    className:'', iconSize:[28,28], iconAnchor:[14,14], popupAnchor:[0,-14]
+  });
+}
+
+function renderMap() {
+  markers.forEach(m => m.remove());
+  markers = [];
+
+  locations.forEach(loc => {
+    if (!filters.locs || !loc.lat) return;
+    if (!filters.exclu && loc.status === 'Exclu') return;
+    const nights = loc.nights ? `${loc.nights} nuits · ` : '';
+    const total  = loc.price && loc.nights ? `${(loc.price*loc.nights).toLocaleString('fr-FR')} € total` : '';
+    const popup  = `<div class="popup-body">
+      <div class="popup-cat">🏠 Location · ${loc.platform}</div>
+      <div class="popup-name">${loc.name}</div>
+      <div class="popup-city">📍 ${loc.city}, ${loc.country}</div>
+      ${loc.price ? `<div class="popup-price">${loc.price} €<span style="font:400 0.7rem var(--sans);color:var(--text3)"> /nuit · ${nights}${total}</span></div>` : ''}
+      ${loc.note ? `<div class="popup-note">${loc.note}</div>` : ''}
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        ${loc.url ? `<a class="popup-link" href="${loc.url}" target="_blank">🔗 Voir l'annonce</a>` : ''}
+        <span class="status-badge badge-${loc.status[0]}">${loc.status}</span>
+      </div>
+      <div class="popup-edit-note">Pour modifier le statut → Sheets</div>
+    </div>`;
+    const m = L.marker([loc.lat, loc.lng], { icon: makeLocIcon(loc.status) }).addTo(map);
+    m.bindPopup(popup, { maxWidth:270 });
+    markers.push(m);
+  });
+
+  pois.forEach(poi => {
+    if (!filters.poi || !poi.lat || !poi.active) return;
+    const popup = `<div class="popup-body">
+      <div class="popup-cat">${poi.type} · POI</div>
+      <div class="popup-name">${poi.name}</div>
+      <div class="popup-city">📍 ${poi.city}, ${poi.country}</div>
+      <div style="font-size:0.8rem;color:var(--gold);margin-bottom:8px">${poi.prio}</div>
+      ${poi.note ? `<div class="popup-note">${poi.note}</div>` : ''}
+      <div class="popup-edit-note">Activer/désactiver → onglet POI ou Sheets</div>
+    </div>`;
+    const m = L.marker([poi.lat, poi.lng], { icon: makePoiIcon(poi.type) }).addTo(map);
+    m.bindPopup(popup, { maxWidth:240 });
+    markers.push(m);
+  });
+}
+
+function flyTo(lat, lng, zoom=12) {
+  map.flyTo([lat, lng], zoom, { duration: 1.1 });
+}
+
+// ══════════════════════════════════════════════════════════
+// SYNTHÈSE
+// ══════════════════════════════════════════════════════════
+function renderSynthese() {
+  const sel  = locations.filter(l => l.status === 'Sélectionné');
+  const pre  = locations.filter(l => l.status === 'Présélectionné');
+  const etu  = locations.filter(l => l.status === 'À étudier');
+  const exc  = locations.filter(l => l.status === 'Exclu');
+  const activePoi = pois.filter(p => p.active);
+  const priced = locations.filter(l => l.price > 0);
+  const avg = priced.length ? Math.round(priced.reduce((s,l)=>s+l.price,0)/priced.length) : null;
+  const selBudget = sel.reduce((s,l)=>s+(l.price||0)*(l.nights||0),0);
+  const totalBudget = locations.reduce((s,l)=>s+(l.price||0)*(l.nights||0),0);
+
+  document.getElementById('k-locs').textContent = locations.length;
+  document.getElementById('k-sel').textContent  = sel.length;
+  document.getElementById('k-poi').textContent  = activePoi.length;
+  document.getElementById('k-avg').textContent  = avg ? avg+'€' : '—';
+  document.getElementById('s-sel').textContent  = sel.length;
+  document.getElementById('s-pre').textContent  = pre.length;
+  document.getElementById('s-etu').textContent  = etu.length;
+  document.getElementById('s-exc').textContent  = exc.length;
+  document.getElementById('b-total').textContent = selBudget.toLocaleString('fr-FR') + ' €';
+
+  const pct = totalBudget > 0 ? Math.min(100, selBudget/totalBudget*100) : 0;
+  document.getElementById('b-bar').style.width = pct + '%';
+
+  const bd = document.getElementById('b-breakdown');
+  bd.innerHTML = sel.length === 0
+    ? `<div class="bbd-row"><span style="font-style:italic;color:var(--text3)">Aucune location sélectionnée</span></div>`
+    : sel.map(l => `<div class="bbd-row"><span>${l.name.length>20?l.name.slice(0,19)+'…':l.name}</span><span>${((l.price||0)*(l.nights||0)).toLocaleString('fr-FR')} €</span></div>`).join('');
+
+  const typeMap = {};
+  activePoi.forEach(p => { const k = p.type.split(' ').slice(0,2).join(' '); typeMap[k]=(typeMap[k]||0)+1; });
+  const tl = document.getElementById('poi-types');
+  tl.innerHTML = Object.keys(typeMap).length === 0
+    ? `<div class="status-row"><div class="status-name" style="color:var(--text3)">Aucun POI actif</div></div>`
+    : Object.entries(typeMap).sort((a,b)=>b[1]-a[1]).map(([t,n])=>`
+        <div class="status-row">
+          <div class="status-dot dot-poi"></div>
+          <div class="status-name">${t}</div>
+          <div class="status-count">${n}</div>
+        </div>`).join('');
+}
+
+// ══════════════════════════════════════════════════════════
+// LOCATIONS LIST
+// ══════════════════════════════════════════════════════════
+function renderLocations() {
+  const el = document.getElementById('loc-list');
+  if (!locations.length) { el.innerHTML = `<div class="empty">Aucune location dans le Sheet</div>`; return; }
+  el.innerHTML = locations.map(loc => {
+    const sc = loc.status === 'Sélectionné' ? 'S' : loc.status === 'Présélectionné' ? 'P' : loc.status === 'À étudier' ? 'A' : 'E';
+    const bc = `badge-${sc}`;
+    const total = loc.price && loc.nights ? `${(loc.price*loc.nights).toLocaleString('fr-FR')} €` : '';
+    return `<div class="loc-card ${sc}" onclick="${loc.lat?`flyTo(${loc.lat},${loc.lng})`:''}">
+      <div class="loc-head">
+        <div>
+          <div class="loc-name">${loc.name}</div>
+          <div class="loc-city">📍 ${loc.city}, ${loc.country} · ${loc.platform}</div>
+        </div>
+        <div>
+          ${loc.price ? `<div class="loc-price">${loc.price} €<small>/nuit</small></div>` : ''}
+          ${total ? `<div style="font-family:var(--mono);font-size:0.58rem;color:var(--text3);text-align:right">${total}</div>` : ''}
+        </div>
+      </div>
+      <div class="loc-foot">
+        <span class="status-badge ${bc}">${loc.status}</span>
+        ${loc.note ? `<span style="font-size:0.72rem;color:var(--text3);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${loc.note}</span>` : ''}
+        ${loc.url ? `<a href="${loc.url}" target="_blank" class="mini-link" onclick="event.stopPropagation()">🔗 Voir</a>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════════════════
+// POI LIST
+// ══════════════════════════════════════════════════════════
+function renderPois() {
+  const el = document.getElementById('poi-list');
+  if (!pois.length) { el.innerHTML = `<div class="empty">Aucun POI dans le Sheet</div>`; return; }
+  const sorted = [...pois].sort((a,b) => {
+    if (a.active !== b.active) return b.active - a.active;
+    const pa = a.prio.includes('⭐⭐⭐')?3:a.prio.includes('⭐⭐')?2:1;
+    const pb = b.prio.includes('⭐⭐⭐')?3:b.prio.includes('⭐⭐')?2:1;
+    return pb - pa;
+  });
+  el.innerHTML = sorted.map(poi => {
+    const emoji = poi.type.split(' ')[0];
+    return `<div class="poi-card ${poi.active?'':'off'}" onclick="${poi.lat?`flyTo(${poi.lat},${poi.lng})`:''}">
+      <div class="poi-icon">${emoji}</div>
+      <div class="poi-info">
+        <div class="poi-name">${poi.name}</div>
+        <div class="poi-meta">${poi.city} · ${poi.prio}</div>
+      </div>
+      <button class="toggle-pill" onclick="event.stopPropagation(); togglePoi(${poi.id})">${poi.active?'Actif':'Inactif'}</button>
+    </div>`;
+  }).join('');
+}
+
+// toggle POI actif localement (sans écrire dans le Sheet)
+function togglePoi(id) {
+  const p = pois.find(x => x.id === id);
+  if (p) { p.active = !p.active; renderAll(); }
+}
+
+// ══════════════════════════════════════════════════════════
+// FILTERS / TABS
+// ══════════════════════════════════════════════════════════
+function toggleFilter(key, el) {
+  filters[key] = !filters[key];
+  el.classList.toggle('on', filters[key]);
+  renderMap();
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', ['synthese','locations','poi'][i]===name));
+  document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
+  document.getElementById('pane-'+name).classList.add('active');
+}
+
+// ══════════════════════════════════════════════════════════
+// RENDER ALL
+// ══════════════════════════════════════════════════════════
+function renderAll() {
+  renderSynthese();
+  renderLocations();
+  renderPois();
+  renderMap();
+}
+
+// ══════════════════════════════════════════════════════════
+// NOTIF
+// ══════════════════════════════════════════════════════════
+let notifTimer;
+function notif(msg, type='') {
+  const el = document.getElementById('notif');
+  el.textContent = msg;
+  el.className = 'show' + (type ? ' ' + type : '');
+  clearTimeout(notifTimer);
+  notifTimer = setTimeout(() => el.className = '', 3000);
+}
+
+// ══════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════
+async function initApp() {
+  initMap();
+
+  if (!DEMO_MODE) {
+    const sheetUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit`;
+    document.getElementById('sheet-link').href = sheetUrl;
+    await syncData();
+  } else {
+    document.getElementById('sheet-link').style.display = 'none';
+    document.getElementById('sync-btn').style.display = 'none';
+    document.getElementById('sync-time').textContent = 'Mode démo — données exemples';
+    renderAll();
+  }
+}
+
+// Auto-refresh toutes les 60s
+setInterval(() => { if (!DEMO_MODE) syncData(); }, 60000);
+
+// ── BOOT ──
+(async () => {
+  const hasConfig = loadConfig();
+  if (hasConfig) {
+    const rows = await fetchCSV('Locations');
+    if (rows !== null) {
+      document.getElementById('setup-screen').style.display = 'none';
+      initApp();
+      return;
+    }
+  }
+  // Afficher setup
+})();
+</script>
+</body>
+</html>
