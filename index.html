@@ -1164,7 +1164,7 @@ function renderSynthese() {
   const bd = document.getElementById('b-breakdown');
   bd.innerHTML = sel.length === 0
     ? `<div class="bbd-row"><span style="font-style:italic;color:var(--text3)">Aucune location sélectionnée</span></div>`
-    : sel.map(l => `<div class="bbd-row"><span>${l.name.length>20?l.name.slice(0,19)+'…':l.name}</span><span>${((l.price||0)*(l.nights||0)).toLocaleString('fr-FR')} €</span></div>`).join('');
+    : sel.map(l => `<div class="bbd-row"><span>${l.name.length>20?l.name.slice(0,19)+'…':l.name}</span><span>${(l.totalPrice||0).toLocaleString('fr-FR')} €</span></div>`).join('');
 
   const typeMap = {};
   activePoi.forEach(p => { const k = p.type.split(' ').slice(0,2).join(' '); typeMap[k]=(typeMap[k]||0)+1; });
