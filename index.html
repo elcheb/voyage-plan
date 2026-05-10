@@ -542,6 +542,23 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
 
 /* empty state */
 .empty { text-align: center; padding: 28px 10px; color: var(--text3); font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.06em; }
+
+.btn-geo {
+  background: var(--gold);
+  border: none;
+  border-radius: 8px;
+  color: #0f0e0b;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  padding: 9px 16px;
+  cursor: pointer;
+  transition: background 0.15s;
+  width: 100%;
+}
+.btn-geo:hover { background: var(--gold2); }
+.btn-geo:disabled { opacity: 0.5; pointer-events: none; }
 </style>
 </head>
 <body>
@@ -616,6 +633,7 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
       <button class="tab active" onclick="switchTab('synthese')">Synthèse</button>
       <button class="tab" onclick="switchTab('locations')">Locations</button>
       <button class="tab" onclick="switchTab('poi')">POI</button>
+      <button class="tab" onclick="switchTab('coords')">📍 Coords</button>
     </div>
 
     <div id="panel-body">
@@ -660,6 +678,53 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
       <!-- POI -->
       <div class="pane" id="pane-poi">
         <div id="poi-list"><div class="empty">Chargement…</div></div>
+      </div>
+
+      <div class="pane" id="pane-coords">
+        <div style="margin-bottom:12px">
+          <div class="synth-label">Coordonnées manquantes</div>
+          <p style="font-size:0.78rem;color:var(--text2);line-height:1.55;margin-bottom:12px">
+            Géocode toutes les locations et POI sans coordonnées, puis affiche un tableau à copier-coller dans ton Google Sheet (colonnes Lat / Lng).
+          </p>
+          <button class="btn-geo" id="btn-geo" onclick="runGeocode()">⚡ Lancer la géolocalisation</button>
+          <div id="geo-progress" style="display:none;margin-top:10px">
+            <div style="font-family:var(--mono);font-size:0.65rem;color:var(--gold);letter-spacing:0.08em;margin-bottom:6px" id="geo-status">Initialisation…</div>
+            <div style="height:3px;background:var(--surface2);border-radius:2px;overflow:hidden">
+              <div id="geo-bar" style="height:100%;background:linear-gradient(90deg,var(--sage),var(--gold));width:0%;transition:width 0.4s ease;border-radius:2px"></div>
+            </div>
+          </div>
+        </div>
+
+        <div id="geo-results" style="display:none">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <div class="synth-label" style="margin:0;border:none">Résultats</div>
+            <button class="btn-geo" id="btn-copy" onclick="copyCoords()" style="padding:5px 12px;font-size:0.62rem">📋 Copier tout</button>
+          </div>
+          <div style="font-size:0.72rem;color:var(--text3);font-family:var(--mono);margin-bottom:8px" id="geo-summary"></div>
+          <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;overflow:hidden">
+            <table style="width:100%;border-collapse:collapse;font-family:var(--mono);font-size:0.68rem" id="geo-table">
+              <thead>
+                <tr style="background:var(--surface3)">
+                  <th style="padding:8px 10px;text-align:left;color:var(--text3);font-weight:400;letter-spacing:0.08em;border-bottom:1px solid var(--border)">Nom</th>
+                  <th style="padding:8px 10px;text-align:left;color:var(--text3);font-weight:400;letter-spacing:0.08em;border-bottom:1px solid var(--border)">Ville</th>
+                  <th style="padding:8px 10px;text-align:center;color:var(--text3);font-weight:400;letter-spacing:0.08em;border-bottom:1px solid var(--border)">Lat</th>
+                  <th style="padding:8px 10px;text-align:center;color:var(--text3);font-weight:400;letter-spacing:0.08em;border-bottom:1px solid var(--border)">Lng</th>
+                  <th style="padding:8px 10px;text-align:center;color:var(--text3);font-weight:400;letter-spacing:0.08em;border-bottom:1px solid var(--border)">Statut</th>
+                </tr>
+              </thead>
+              <tbody id="geo-tbody"></tbody>
+            </table>
+          </div>
+          <div style="margin-top:12px;padding:10px 12px;background:rgba(126,168,140,0.1);border:1px solid rgba(126,168,140,0.25);border-radius:8px">
+            <div style="font-family:var(--mono);font-size:0.62rem;color:var(--sage);margin-bottom:4px;letter-spacing:0.08em">COMMENT UTILISER</div>
+            <div style="font-size:0.75rem;color:var(--text2);line-height:1.55">
+              1. Clique <strong style="color:var(--text)">📋 Copier tout</strong> → les données sont dans ton presse-papier<br>
+              2. Ouvre ton Google Sheet → colonne <strong style="color:var(--text)">J2</strong> (Locations) ou <strong style="color:var(--text)">H2</strong> (POI)<br>
+              3. <strong style="color:var(--text)">Ctrl+Shift+V</strong> pour coller sans mise en forme<br>
+              4. Clique <strong style="color:var(--text)">Actualiser</strong> → les marqueurs apparaissent immédiatement
+            </div>
+          </div>
+        </div>
       </div>
 
     </div>
@@ -852,32 +917,72 @@ function setSyncState(state) {
 }
 
 // ══════════════════════════════════════════════════════════
-// GEOCODING
+// GEOCODING — parallele avec cache localStorage
 // ══════════════════════════════════════════════════════════
+let geoCache = {};
+
+function loadGeoCache() {
+  try { geoCache = JSON.parse(localStorage.getItem('vp_geocache') || '{}'); } catch(e) { geoCache = {}; }
+}
+
+function saveGeoCache() {
+  try { localStorage.setItem('vp_geocache', JSON.stringify(geoCache)); } catch(e) {}
+}
+
+function geoCacheKey(city, country) {
+  return (city + '|' + country).toLowerCase().trim();
+}
+
 async function geocodeMissing() {
-  const toGeo = [
+  loadGeoCache();
+  const allItems = [
     ...locations.filter(l => !l.lat && l.city),
     ...pois.filter(p => !p.lat && p.city)
   ];
-  // Batch avec délai pour respecter Nominatim (1 req/s)
-  for (const item of toGeo) {
-    await new Promise(r => setTimeout(r, 1100));
-    const coords = await geocode(item.name, item.city, item.country);
-    if (coords) { item.lat = coords.lat; item.lng = coords.lng; }
+
+  // Appliquer le cache sans requete reseau
+  allItems.forEach(item => {
+    const key = geoCacheKey(item.city, item.country);
+    if (geoCache[key]) { item.lat = geoCache[key].lat; item.lng = geoCache[key].lng; }
+  });
+
+  rebuildMarkers();
+
+  // Dedupliquer par ville et geocoder les restants
+  const remaining = allItems.filter(item => !item.lat);
+  const seen = {};
+  const unique = [];
+  remaining.forEach(item => {
+    const key = geoCacheKey(item.city, item.country);
+    if (!seen[key]) { seen[key] = true; unique.push({ item, key }); }
+  });
+
+  if (unique.length === 0) return;
+
+  // Batches de 5 en parallele
+  for (let i = 0; i < unique.length; i += 5) {
+    const batch = unique.slice(i, i + 5);
+    await Promise.all(batch.map(async ({ item, key }) => {
+      const coords = await geocode(item.city, item.country);
+      if (coords) {
+        geoCache[key] = coords;
+        [...locations, ...pois].forEach(x => {
+          if (geoCacheKey(x.city, x.country) === key) { x.lat = coords.lat; x.lng = coords.lng; }
+        });
+      }
+    }));
+    if (i + 5 < unique.length) await new Promise(r => setTimeout(r, 1000));
+    rebuildMarkers();
   }
+  saveGeoCache();
 }
 
-async function geocode(name, city, country) {
+async function geocode(city, country) {
   try {
-    const q = encodeURIComponent(`${name}, ${city}, ${country}`);
-    const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1&accept-language=fr`);
+    const q = encodeURIComponent(city + ', ' + country);
+    const res = await fetch('https://nominatim.openstreetmap.org/search?q=' + q + '&format=json&limit=1&accept-language=fr');
     const d = await res.json();
     if (d[0]) return { lat: parseFloat(d[0].lat), lng: parseFloat(d[0].lon) };
-    // Fallback ville seule
-    const q2 = encodeURIComponent(`${city}, ${country}`);
-    const res2 = await fetch(`https://nominatim.openstreetmap.org/search?q=${q2}&format=json&limit=1`);
-    const d2 = await res2.json();
-    if (d2[0]) return { lat: parseFloat(d2[0].lat), lng: parseFloat(d2[0].lon) };
   } catch(e) {}
   return null;
 }
@@ -931,46 +1036,94 @@ function makePoiIcon(type) {
   });
 }
 
-function renderMap() {
-  markers.forEach(m => m.remove());
-  markers = [];
+function makeLocPopup(loc) {
+  const nights = loc.nights ? loc.nights + ' nuits · ' : '';
+  const total  = loc.price && loc.nights ? (loc.price*loc.nights).toLocaleString('fr-FR') + ' € total' : '';
+  const sc = loc.status ? loc.status[0] : 'A';
+  return '<div class="popup-body">'
+    + '<div class="popup-cat">🏠 Location · ' + (loc.platform||'') + '</div>'
+    + '<div class="popup-name">' + loc.name + '</div>'
+    + '<div class="popup-city">📍 ' + loc.city + ', ' + loc.country + '</div>'
+    + (loc.price ? '<div class="popup-price">' + loc.price + ' €<span style="font:400 0.7rem var(--sans);color:var(--text3)"> /nuit · ' + nights + total + '</span></div>' : '')
+    + (loc.note ? '<div class="popup-note">' + loc.note + '</div>' : '')
+    + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
+    + (loc.url ? '<a class="popup-link" href="' + loc.url + '" target="_blank">🔗 Voir l'annonce</a>' : '')
+    + '<span class="status-badge badge-' + sc + '">' + loc.status + '</span>'
+    + '</div>'
+    + '<div class="popup-edit-note">Pour modifier → Google Sheets</div>'
+    + '</div>';
+}
+
+function makePoiPopup(poi) {
+  return '<div class="popup-body">'
+    + '<div class="popup-cat">' + poi.type + ' · POI</div>'
+    + '<div class="popup-name">' + poi.name + '</div>'
+    + '<div class="popup-city">📍 ' + poi.city + ', ' + poi.country + '</div>'
+    + '<div style="font-size:0.8rem;color:var(--gold);margin-bottom:8px">' + poi.prio + '</div>'
+    + (poi.note ? '<div class="popup-note">' + poi.note + '</div>' : '')
+    + '<div class="popup-edit-note">Activer/désactiver → onglet POI ou Sheets</div>'
+    + '</div>';
+}
+
+// Couche Leaflet séparée par type — permet show/hide sans recréer
+let layerLocs = null;
+let layerPoi  = null;
+
+function rebuildMarkers() {
+  // Supprimer les anciennes couches
+  if (layerLocs) { map.removeLayer(layerLocs); }
+  if (layerPoi)  { map.removeLayer(layerPoi); }
+
+  layerLocs = L.layerGroup();
+  layerPoi  = L.layerGroup();
 
   locations.forEach(loc => {
-    if (!filters.locs || !loc.lat) return;
-    if (!filters.exclu && loc.status === 'Exclu') return;
-    const nights = loc.nights ? `${loc.nights} nuits · ` : '';
-    const total  = loc.price && loc.nights ? `${(loc.price*loc.nights).toLocaleString('fr-FR')} € total` : '';
-    const popup  = `<div class="popup-body">
-      <div class="popup-cat">🏠 Location · ${loc.platform}</div>
-      <div class="popup-name">${loc.name}</div>
-      <div class="popup-city">📍 ${loc.city}, ${loc.country}</div>
-      ${loc.price ? `<div class="popup-price">${loc.price} €<span style="font:400 0.7rem var(--sans);color:var(--text3)"> /nuit · ${nights}${total}</span></div>` : ''}
-      ${loc.note ? `<div class="popup-note">${loc.note}</div>` : ''}
-      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-        ${loc.url ? `<a class="popup-link" href="${loc.url}" target="_blank">🔗 Voir l'annonce</a>` : ''}
-        <span class="status-badge badge-${loc.status[0]}">${loc.status}</span>
-      </div>
-      <div class="popup-edit-note">Pour modifier le statut → Sheets</div>
-    </div>`;
-    const m = L.marker([loc.lat, loc.lng], { icon: makeLocIcon(loc.status) }).addTo(map);
-    m.bindPopup(popup, { maxWidth:270 });
-    markers.push(m);
+    if (!loc.lat) return;
+    const m = L.marker([loc.lat, loc.lng], { icon: makeLocIcon(loc.status) });
+    m.bindPopup(makeLocPopup(loc), { maxWidth:270 });
+    layerLocs.addLayer(m);
   });
 
   pois.forEach(poi => {
-    if (!filters.poi || !poi.lat || !poi.active) return;
-    const popup = `<div class="popup-body">
-      <div class="popup-cat">${poi.type} · POI</div>
-      <div class="popup-name">${poi.name}</div>
-      <div class="popup-city">📍 ${poi.city}, ${poi.country}</div>
-      <div style="font-size:0.8rem;color:var(--gold);margin-bottom:8px">${poi.prio}</div>
-      ${poi.note ? `<div class="popup-note">${poi.note}</div>` : ''}
-      <div class="popup-edit-note">Activer/désactiver → onglet POI ou Sheets</div>
-    </div>`;
-    const m = L.marker([poi.lat, poi.lng], { icon: makePoiIcon(poi.type) }).addTo(map);
-    m.bindPopup(popup, { maxWidth:240 });
-    markers.push(m);
+    if (!poi.lat || !poi.active) return;
+    const m = L.marker([poi.lat, poi.lng], { icon: makePoiIcon(poi.type) });
+    m.bindPopup(makePoiPopup(poi), { maxWidth:240 });
+    layerPoi.addLayer(m);
   });
+
+  applyFilters();
+}
+
+function applyFilters() {
+  if (!map) return;
+
+  if (layerLocs) {
+    if (filters.locs) {
+      layerLocs.addTo(map);
+      // Gérer les exclues individuellement
+      layerLocs.eachLayer(m => {
+        const loc = locations.find(l => l.lat === m.getLatLng().lat && l.lng === m.getLatLng().lng);
+        if (loc && loc.status === 'Exclu' && !filters.exclu) {
+          m.setOpacity(0);
+          m.options.interactive = false;
+        } else {
+          m.setOpacity(1);
+          m.options.interactive = true;
+        }
+      });
+    } else {
+      map.removeLayer(layerLocs);
+    }
+  }
+
+  if (layerPoi) {
+    if (filters.poi) layerPoi.addTo(map);
+    else map.removeLayer(layerPoi);
+  }
+}
+
+function renderMap() {
+  rebuildMarkers();
 }
 
 function flyTo(lat, lng, zoom=12) {
@@ -1089,13 +1242,155 @@ function togglePoi(id) {
 function toggleFilter(key, el) {
   filters[key] = !filters[key];
   el.classList.toggle('on', filters[key]);
-  renderMap();
+  applyFilters();
 }
 
 function switchTab(name) {
-  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', ['synthese','locations','poi'][i]===name));
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', ['synthese','locations','poi','coords'][i]===name));
   document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
   document.getElementById('pane-'+name).classList.add('active');
+}
+
+// ══════════════════════════════════════════════════════════
+// ONGLET COORDS — géolocalisation manuelle + export
+// ══════════════════════════════════════════════════════════
+let geoResults = [];
+
+async function runGeocode() {
+  const btn = document.getElementById('btn-geo');
+  const progress = document.getElementById('geo-progress');
+  const status = document.getElementById('geo-status');
+  const bar = document.getElementById('geo-bar');
+  const results = document.getElementById('geo-results');
+
+  btn.disabled = true;
+  progress.style.display = 'block';
+  results.style.display = 'none';
+  geoResults = [];
+
+  // Collecter tous les items sans coordonnées
+  const items = [
+    ...locations.map(l => ({ ...l, _type: 'Location' })),
+    ...pois.map(p => ({ ...p, _type: 'POI' }))
+  ];
+
+  const total = items.length;
+  let done = 0;
+  let found = 0;
+  let notFound = 0;
+
+  loadGeoCache();
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    done++;
+    const pct = Math.round((done / total) * 100);
+    bar.style.width = pct + '%';
+    status.textContent = `${done}/${total} — ${item.name} (${item.city})`;
+
+    let lat = item.lat;
+    let lng = item.lng;
+    let fromCache = false;
+    let success = false;
+
+    if (lat && lng) {
+      success = true;
+      fromCache = true;
+    } else {
+      const key = geoCacheKey(item.city, item.country);
+      if (geoCache[key]) {
+        lat = geoCache[key].lat;
+        lng = geoCache[key].lng;
+        success = true;
+        fromCache = true;
+      } else {
+        await new Promise(r => setTimeout(r, 1100));
+        const coords = await geocode(item.city, item.country);
+        if (coords) {
+          lat = coords.lat;
+          lng = coords.lng;
+          geoCache[key] = coords;
+          success = true;
+        }
+      }
+    }
+
+    if (success) found++; else notFound++;
+
+    geoResults.push({
+      name: item.name,
+      city: item.city,
+      type: item._type,
+      lat: lat ? lat.toFixed(6) : '',
+      lng: lng ? lng.toFixed(6) : '',
+      ok: success,
+      fromCache,
+    });
+  }
+
+  saveGeoCache();
+
+  // Afficher résultats
+  document.getElementById('geo-summary').textContent =
+    found + ' trouvées · ' + notFound + ' non trouvées · ' + total + ' total';
+
+  const tbody = document.getElementById('geo-tbody');
+  tbody.innerHTML = geoResults.map((r, i) => {
+    const bg = i % 2 === 0 ? 'background:var(--surface)' : 'background:var(--surface2)';
+    const statusIcon = r.ok
+      ? (r.fromCache && !r.lat ? '⚡ cache' : r.ok ? '<span style="color:var(--sage)">✓</span>' : '')
+      : '<span style="color:var(--terra)">✗</span>';
+    return '<tr style="' + bg + '">'
+      + '<td style="padding:7px 10px;color:var(--text);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + r.name + '</td>'
+      + '<td style="padding:7px 10px;color:var(--text2)">' + r.city + '</td>'
+      + '<td style="padding:7px 10px;text-align:center;color:var(--gold)">' + (r.lat || '—') + '</td>'
+      + '<td style="padding:7px 10px;text-align:center;color:var(--gold)">' + (r.lng || '—') + '</td>'
+      + '<td style="padding:7px 10px;text-align:center">' + (r.ok ? '<span style="color:var(--sage)">✓</span>' : '<span style="color:var(--terra)">✗</span>') + '</td>'
+      + '</tr>';
+  }).join('');
+
+  results.style.display = 'block';
+  status.textContent = 'Terminé — ' + found + '/' + total + ' géolocalisées';
+  btn.disabled = false;
+  btn.textContent = '🔄 Relancer';
+
+  // Appliquer les coordonnées trouvées aux données en mémoire et rafraîchir la carte
+  geoResults.forEach(r => {
+    if (!r.ok) return;
+    [...locations, ...pois].forEach(item => {
+      if (item.name === r.name && item.city === r.city) {
+        item.lat = parseFloat(r.lat) || null;
+        item.lng = parseFloat(r.lng) || null;
+      }
+    });
+  });
+  rebuildMarkers();
+}
+
+function copyCoords() {
+  // Format TSV : Nom | Ville | Type | Lat | Lng — prêt à coller dans Sheets
+  const header = 'Nom	Ville	Type	Lat	Lng';
+  const rows = geoResults.map(r =>
+    r.name + '	' + r.city + '	' + r.type + '	' + (r.lat || '') + '	' + (r.lng || '')
+  );
+  const text = [header, ...rows].join('
+');
+
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('btn-copy');
+    btn.textContent = '✓ Copié !';
+    setTimeout(() => { btn.textContent = '📋 Copier tout'; }, 2000);
+    notif(geoResults.length + ' lignes copiées — colle dans ton Sheet', 'ok');
+  }).catch(() => {
+    // Fallback
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    notif('Copié !', 'ok');
+  });
 }
 
 // ══════════════════════════════════════════════════════════
