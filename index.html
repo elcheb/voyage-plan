@@ -849,20 +849,26 @@ function parseCSV(text) {
 }
 
 function parseLocations(rows) {
-  return rows.map((r, i) => ({
-    id: i + 1,
-    name:     r[0] || '',
-    city:     r[1] || '',
-    country:  r[2] || '',
-    platform: r[3] || '',
-    price:    parseFloat((r[4]||'').replace(',','.')) || 0,
-    nights:   parseInt(r[5]) || 0,
-    status:   r[6] || 'À étudier',
-    url:      r[7] || '',
-    note:     r[8] || '',
-    lat:      parseFloat((r[9]||'').replace(',','.')) || null,
-    lng:      parseFloat((r[10]||'').replace(',','.')) || null,
-  })).filter(l => l.name);
+  return rows.map((r, i) => {
+    const totalPrice = parseFloat((r[4]||'').replace(',','.')) || 0;
+    const nights     = parseInt(r[5]) || 0;
+    const pricePerNight = (totalPrice > 0 && nights > 0) ? Math.round(totalPrice / nights) : totalPrice;
+    return {
+      id: i + 1,
+      name:          r[0] || '',
+      city:          r[1] || '',
+      country:       r[2] || '',
+      platform:      r[3] || '',
+      totalPrice,
+      pricePerNight,
+      nights,
+      status:        r[6] || 'À étudier',
+      url:           r[7] || '',
+      note:          r[8] || '',
+      lat:           parseFloat((r[9]||'').replace(',','.')) || null,
+      lng:           parseFloat((r[10]||'').replace(',','.')) || null,
+    };
+  }).filter(l => l.name);
 }
 
 function parsePois(rows) {
@@ -1037,14 +1043,12 @@ function makePoiIcon(type) {
 }
 
 function makeLocPopup(loc) {
-  const nights = loc.nights ? loc.nights + ' nuits · ' : '';
-  const total  = loc.price && loc.nights ? (loc.price*loc.nights).toLocaleString('fr-FR') + ' € total' : '';
   const sc = loc.status ? loc.status[0] : 'A';
   return '<div class="popup-body">'
     + '<div class="popup-cat">🏠 Location · ' + (loc.platform||'') + '</div>'
     + '<div class="popup-name">' + loc.name + '</div>'
     + '<div class="popup-city">📍 ' + loc.city + ', ' + loc.country + '</div>'
-    + (loc.price ? '<div class="popup-price">' + loc.price + ' €<span style="font:400 0.7rem var(--sans);color:var(--text3)"> /nuit · ' + nights + total + '</span></div>' : '')
+    + (loc.pricePerNight ? '<div class="popup-price">' + loc.pricePerNight + ' €<span style="font:400 0.7rem var(--sans);color:var(--text3)"> /nuit &mdash; ' + (loc.nights||'') + ' nuits &mdash; ' + (loc.totalPrice ? loc.totalPrice.toLocaleString('fr-FR') + ' € total' : '') + '</span></div>' : '')
     + (loc.note ? '<div class="popup-note">' + loc.note + '</div>' : '')
     + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
     + (loc.url ? '<a class="popup-link" href="' + loc.url + '" target="_blank">🔗 Voir annonce</a>' : '')
@@ -1139,10 +1143,10 @@ function renderSynthese() {
   const etu  = locations.filter(l => l.status === 'À étudier');
   const exc  = locations.filter(l => l.status === 'Exclu');
   const activePoi = pois.filter(p => p.active);
-  const priced = locations.filter(l => l.price > 0);
-  const avg = priced.length ? Math.round(priced.reduce((s,l)=>s+l.price,0)/priced.length) : null;
-  const selBudget = sel.reduce((s,l)=>s+(l.price||0)*(l.nights||0),0);
-  const totalBudget = locations.reduce((s,l)=>s+(l.price||0)*(l.nights||0),0);
+  const priced = locations.filter(l => l.pricePerNight > 0);
+  const avg = priced.length ? Math.round(priced.reduce((s,l)=>s+l.pricePerNight,0)/priced.length) : null;
+  const selBudget = sel.reduce((s,l)=>s+(l.totalPrice||0),0);
+  const totalBudget = locations.reduce((s,l)=>s+(l.totalPrice||0),0);
 
   document.getElementById('k-locs').textContent = locations.length;
   document.getElementById('k-sel').textContent  = sel.length;
@@ -1184,7 +1188,6 @@ function renderLocations() {
   el.innerHTML = locations.map(loc => {
     const sc = loc.status === 'Sélectionné' ? 'S' : loc.status === 'Présélectionné' ? 'P' : loc.status === 'À étudier' ? 'A' : 'E';
     const bc = `badge-${sc}`;
-    const total = loc.price && loc.nights ? `${(loc.price*loc.nights).toLocaleString('fr-FR')} €` : '';
     return `<div class="loc-card ${sc}" onclick="${loc.lat?`flyTo(${loc.lat},${loc.lng})`:''}">
       <div class="loc-head">
         <div>
@@ -1192,8 +1195,8 @@ function renderLocations() {
           <div class="loc-city">📍 ${loc.city}, ${loc.country} · ${loc.platform}</div>
         </div>
         <div>
-          ${loc.price ? `<div class="loc-price">${loc.price} €<small>/nuit</small></div>` : ''}
-          ${total ? `<div style="font-family:var(--mono);font-size:0.58rem;color:var(--text3);text-align:right">${total}</div>` : ''}
+          ${loc.pricePerNight ? `<div class="loc-price">${loc.pricePerNight} €<small>/nuit</small></div>` : ''}
+          ${loc.totalPrice ? `<div style="font-family:var(--mono);font-size:0.58rem;color:var(--text3);text-align:right">${loc.totalPrice.toLocaleString('fr-FR')} € total · ${loc.nights}n</div>` : ''}
         </div>
       </div>
       <div class="loc-foot">
