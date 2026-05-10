@@ -773,7 +773,7 @@ let lastSync = null;
 // ══════════════════════════════════════════════════════════
 async function connectSheets() {
   const sid = document.getElementById('setup-sheet-id').value.trim();
-  if (!sid) { notif('Colle l\'ID du Sheet', 'err'); return; }
+  if (!sid) { notif('Colle ton ID de Sheet', 'err'); return; }
   SHEET_ID = sid;
 
   document.getElementById('setup-err').style.display = 'none';
@@ -822,7 +822,7 @@ async function fetchCSV(tabName) {
     const res = await fetch(url, { cache: 'no-store' });
     if (!res.ok) return null;
     const text = await res.text();
-    if (text.includes('<html') || text.includes('<!DOCTYPE')) return null; // page d'erreur Google
+    if (text.includes('<html') || text.includes('<!DOCTYPE')) return null; // page erreur Google
     return parseCSV(text);
   } catch(e) { return null; }
 }
@@ -1047,7 +1047,7 @@ function makeLocPopup(loc) {
     + (loc.price ? '<div class="popup-price">' + loc.price + ' €<span style="font:400 0.7rem var(--sans);color:var(--text3)"> /nuit · ' + nights + total + '</span></div>' : '')
     + (loc.note ? '<div class="popup-note">' + loc.note + '</div>' : '')
     + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
-    + (loc.url ? '<a class="popup-link" href="' + loc.url + '" target="_blank">🔗 Voir l'annonce</a>' : '')
+    + (loc.url ? '<a class="popup-link" href="' + loc.url + '" target="_blank">🔗 Voir annonce</a>' : '')
     + '<span class="status-badge badge-' + sc + '">' + loc.status + '</span>'
     + '</div>'
     + '<div class="popup-edit-note">Pour modifier → Google Sheets</div>'
@@ -1286,7 +1286,7 @@ async function runGeocode() {
     done++;
     const pct = Math.round((done / total) * 100);
     bar.style.width = pct + '%';
-    status.textContent = `${done}/${total} — ${item.name} (${item.city})`;
+    status.textContent = done + '/' + total + ' - ' + item.name + ' (' + item.city + ')';
 
     let lat = item.lat;
     let lng = item.lng;
@@ -1332,25 +1332,25 @@ async function runGeocode() {
 
   // Afficher résultats
   document.getElementById('geo-summary').textContent =
-    found + ' trouvées · ' + notFound + ' non trouvées · ' + total + ' total';
+    found + ' trouvees / ' + total + ' total (' + notFound + ' non trouvees)';
 
   const tbody = document.getElementById('geo-tbody');
-  tbody.innerHTML = geoResults.map((r, i) => {
-    const bg = i % 2 === 0 ? 'background:var(--surface)' : 'background:var(--surface2)';
-    const statusIcon = r.ok
-      ? (r.fromCache && !r.lat ? '⚡ cache' : r.ok ? '<span style="color:var(--sage)">✓</span>' : '')
-      : '<span style="color:var(--terra)">✗</span>';
+  tbody.innerHTML = geoResults.map(function(r, i) {
+    var bg = i % 2 === 0 ? 'background:var(--surface)' : 'background:var(--surface2)';
+    var statusCell = r.ok ? '<span style="color:#7ea88c">&#10003;</span>' : '<span style="color:#c97a5e">&#10007;</span>';
+    var latVal = r.lat ? r.lat : '&mdash;';
+    var lngVal = r.lng ? r.lng : '&mdash;';
     return '<tr style="' + bg + '">'
-      + '<td style="padding:7px 10px;color:var(--text);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + r.name + '</td>'
-      + '<td style="padding:7px 10px;color:var(--text2)">' + r.city + '</td>'
-      + '<td style="padding:7px 10px;text-align:center;color:var(--gold)">' + (r.lat || '—') + '</td>'
-      + '<td style="padding:7px 10px;text-align:center;color:var(--gold)">' + (r.lng || '—') + '</td>'
-      + '<td style="padding:7px 10px;text-align:center">' + (r.ok ? '<span style="color:var(--sage)">✓</span>' : '<span style="color:var(--terra)">✗</span>') + '</td>'
+      + '<td style="padding:7px 10px;color:#ece8df;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + r.name + '</td>'
+      + '<td style="padding:7px 10px;color:#a09880">' + r.city + '</td>'
+      + '<td style="padding:7px 10px;text-align:center;color:#c9a96e">' + latVal + '</td>'
+      + '<td style="padding:7px 10px;text-align:center;color:#c9a96e">' + lngVal + '</td>'
+      + '<td style="padding:7px 10px;text-align:center">' + statusCell + '</td>'
       + '</tr>';
   }).join('');
 
   results.style.display = 'block';
-  status.textContent = 'Terminé — ' + found + '/' + total + ' géolocalisées';
+  status.textContent = 'Termine : ' + found + '/' + total + ' geolocalisees';
   btn.disabled = false;
   btn.textContent = '🔄 Relancer';
 
@@ -1380,7 +1380,7 @@ function copyCoords() {
     const btn = document.getElementById('btn-copy');
     btn.textContent = '✓ Copié !';
     setTimeout(() => { btn.textContent = '📋 Copier tout'; }, 2000);
-    notif(geoResults.length + ' lignes copiées — colle dans ton Sheet', 'ok');
+    notif(geoResults.length + ' lignes copiees - colle dans ton Sheet', 'ok');
   }).catch(() => {
     // Fallback
     const ta = document.createElement('textarea');
