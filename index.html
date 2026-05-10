@@ -1373,8 +1373,7 @@ function copyCoords() {
   const rows = geoResults.map(r =>
     r.name + '	' + r.city + '	' + r.type + '	' + (r.lat || '') + '	' + (r.lng || '')
   );
-  const text = [header, ...rows].join('
-');
+  const text = [header].concat(rows).join('\n');
 
   navigator.clipboard.writeText(text).then(() => {
     const btn = document.getElementById('btn-copy');
